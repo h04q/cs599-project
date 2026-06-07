@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  codesentinel:
+    build: .
+    image: codesentinel:latest
+    container_name: codesentinel
+    env_file:
+      - .env
+    volumes:
+      # 挂载待审查代码，避免把代码烤进镜像
+      - ./examples:/app/examples:ro
+      # 报告输出目录
+      - ./out:/app/out
+    command: ["review", "--path", "examples/sample_buggy.py", "--output", "out/report.md"]

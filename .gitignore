@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.trae/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 环境变量与密钥（绝对不能提交）
+.env
+.env.local
+*.key
+*.pem
+
+# 项目运行产物
+*.log
+logs/
+.codesentinel/
+*.sqlite
+*.db
+report_*.md
+report_*.json
+
+# Docker
+.docker/
