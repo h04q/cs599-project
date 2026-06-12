@@ -22,13 +22,13 @@
 
 ```mermaid
 flowchart LR
-  user["开发者 / CI"] -->|CLI: review --path| cli["src.main (Typer CLI)"]
-  cli --> graph["LangGraph 工作流"]
-  graph --> llm[("LLM Provider<br/>DeepSeek / Anthropic / Ollama")]
-  graph --> sa["静态分析<br/>pylint / bandit / radon"]
-  graph --> fs[("Workspace 文件系统")]
-  graph --> mem[("SQLite 长期记忆")]
-  graph --> ls["LangSmith (可选)"]
+  user["开发者 / CI"] -->|"CLI: review --path"| cli["src.main (Typer CLI)"]
+  cli --> workflow["LangGraph 工作流"]
+  workflow --> llm[("LLM Provider<br/>DeepSeek / Anthropic / Ollama")]
+  workflow --> sa["静态分析<br/>pylint / bandit / radon"]
+  workflow --> fs[("Workspace 文件系统")]
+  workflow --> mem[("SQLite 长期记忆")]
+  workflow --> ls["LangSmith (可选)"]
   cli --> rep["report.md / findings.json"]
 ```
 
@@ -194,18 +194,19 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  subgraph local[开发者本地]
-    cli2[Python venv] --> code[(项目代码)]
-    cli2 --> envf[.env]
+  subgraph local["开发者本地"]
+    cli2["Python venv"] --> code[("项目代码")]
+    cli2 --> envf[".env"]
   end
-  subgraph docker[Docker 部署]
-    img[codesentinel:latest] --> code2[(挂载 examples/)]
+  subgraph docker["Docker 部署"]
+    img["codesentinel:latest"] --> code2[("挂载 examples/")]
   end
-  subgraph cloud[云服务器（加分项 +3）]
-    vm[VM / 容器] --> img
-    vm --> domain[https://*/api/review]
+  subgraph cloud["云服务器（加分项 +3）"]
+    vm["VM / 容器"] --> img
+    vm --> domain["https://*/api/review"]
   end
-  cli2 -.或.-> img
+  
+  cli2 -.->|"或"| img
 ```
 
 ---

@@ -15,13 +15,13 @@ flowchart TB
     main["src/main.py<br/>typer + rich"]:::mod
   end
 
-  subgraph Graph["编排层 (LangGraph)"]
+  subgraph GraphLayer["编排层 (LangGraph)"]
     direction TB
-    SC[Scanner]:::mod
-    RV[Reviewer × 4 维度]:::mod
-    VF{Verifier<br/>对抗式}:::mod
-    FX[Fixer]:::mod
-    RP[Reporter]:::mod
+    SC["Scanner"]:::mod
+    RV["Reviewer × 4 维度"]:::mod
+    VF{"Verifier<br/>对抗式"}:::mod
+    FX["Fixer"]:::mod
+    RP["Reporter"]:::mod
     SC --> RV --> VF
     VF -->|loop| RV
     VF --> FX --> RP
@@ -42,13 +42,13 @@ flowchart TB
   LLM[("DeepSeek / Anthropic /<br/>OpenAI / Ollama")]:::llm
   LS[("LangSmith<br/>(可选 Tracing)")]:::ext
 
-  main --> Graph
+  main --> GraphLayer
   RV --> LLM
   VF --> LLM
   FX --> LLM
-  Graph --> Tools
-  Graph --> Infra
-  Graph -.tracing.-> LS
+  GraphLayer --> Tools
+  GraphLayer --> Infra
+  GraphLayer -.->|tracing| LS
   FX --> mem
 ```
 
