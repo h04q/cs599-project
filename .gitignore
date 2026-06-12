@@ -39,8 +39,10 @@ logs/
 .codesentinel/
 *.sqlite
 *.db
+report.md
 report_*.md
 report_*.json
+out/
 
 # Docker
 .docker/

@@ -27,6 +27,20 @@ def test_settings_provider_switch(monkeypatch):
     assert s.is_provider_configured is True
 
 
+def test_settings_qwen_provider_requires_api_key(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "qwen")
+    monkeypatch.delenv("QWEN_API_KEY", raising=False)
+    settings_mod.get_settings.cache_clear()
+    s = settings_mod.Settings(_env_file=None)
+    assert s.qwen_model == "qwen-plus"
+    assert s.qwen_base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    assert s.is_provider_configured is False
+
+    monkeypatch.setenv("QWEN_API_KEY", "sk-test")
+    s = settings_mod.Settings(_env_file=None)
+    assert s.is_provider_configured is True
+
+
 def test_settings_invalid_provider_falls_back(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "not-a-real-vendor")
     settings_mod.get_settings.cache_clear()

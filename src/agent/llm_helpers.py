@@ -43,7 +43,7 @@ def _extract_json(text: str, agent_name: str) -> Any:
     candidate = m.group(1) if m else text.strip()
     # 再尝试抓首个 [ ... ] / { ... }
     if not (candidate.startswith("[") or candidate.startswith("{")):
-        for opener, closer in (("[", "]"), ("{", "}")):
+        for opener, closer in (("{", "}"), ("[", "]")):
             i = candidate.find(opener)
             j = candidate.rfind(closer)
             if 0 <= i < j:

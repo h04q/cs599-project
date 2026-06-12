@@ -7,6 +7,8 @@
 """
 from __future__ import annotations
 
+import io
+import sys
 from pathlib import Path
 
 import typer
@@ -24,7 +26,8 @@ app = typer.Typer(
     add_completion=False,
     help="CodeSentinel — 智能代码审查与 Bug 修复 Agent",
 )
-console = Console()
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+console = Console(force_terminal=True)
 
 
 @app.command()
@@ -73,7 +76,7 @@ def review(
     if report_md:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(report_md, encoding="utf-8")
-        console.print(f"[green]✓ 报告已写入 {output}[/green]")
+        console.print(f"[green]OK 报告已写入 {output}[/green]")
 
     findings = final_state.get("findings", [])
     confirmed = [f for f in findings if f.confirmed]
@@ -95,12 +98,46 @@ def info() -> None:
     table.add_column("项")
     table.add_column("值")
     table.add_row("LLM Provider", s.llm_provider)
-    table.add_row("Provider 已配置", "✓" if s.is_provider_configured else "✗")
+    table.add_row("Provider 已配置", "Y" if s.is_provider_configured else "N")
     table.add_row("最大轮次", str(s.max_review_rounds))
-    table.add_row("启用自动修复", "✓" if s.enable_auto_fix else "✗")
+    table.add_row("启用自动修复", "Y" if s.enable_auto_fix else "N")
     table.add_row("严重度阈值", s.severity_threshold)
     table.add_row("日志格式", s.log_format)
     console.print(table)
+
+
+@app.command()
+def web(
+    host: str = typer.Option("0.0.0.0", "--host", help="绑定地址"),
+    port: int = typer.Option(8000, "--port", "-p", help="端口号"),
+    reload: bool = typer.Option(False, "--reload", help="开发模式：自动重载"),
+) -> None:
+    """启动 Web 服务器。"""
+    try:
+        import uvicorn
+        from src.web.app import app as web_app
+    except ImportError:
+        console.print("[red]请先安装 Web 依赖: pip install fastapi uvicorn[standard][/red]")
+        raise typer.Exit(code=1)
+
+    display_host = "localhost" if host == "0.0.0.0" else host
+    console.print(
+        Panel.fit(
+            f"Web 服务器启动中...\n"
+            f"地址: [cyan]http://{display_host}:{port}[/cyan]\n"
+            f"API 文档: [cyan]http://{display_host}:{port}/docs[/cyan]",
+            title="CodeSentinel Web",
+            border_style="green",
+        )
+    )
+
+    uvicorn.run(
+        "src.web.app:app",
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info",
+    )
 
 
 if __name__ == "__main__":

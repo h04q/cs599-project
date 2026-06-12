@@ -8,7 +8,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-Provider = Literal["deepseek", "anthropic", "openai", "ollama"]
+Provider = Literal["deepseek", "anthropic", "openai", "qwen", "ollama"]
 Severity = Literal["low", "medium", "high"]
 
 
@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # ---- OpenAI ----
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    openai_base_url: str = ""
+
+    # ---- Qwen / DashScope OpenAI-compatible API ----
+    qwen_api_key: str = ""
+    qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    qwen_model: str = "qwen-plus"
 
     # ---- Ollama 本地兜底 ----
     ollama_base_url: str = "http://localhost:11434"
@@ -63,6 +69,8 @@ class Settings(BaseSettings):
                 return bool(self.anthropic_api_key)
             case "openai":
                 return bool(self.openai_api_key)
+            case "qwen":
+                return bool(self.qwen_api_key)
             case "ollama":
                 return True  # 本地无需 key
         return False

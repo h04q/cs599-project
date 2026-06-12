@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeSentinel - 智能代码审查系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .finding-card {
+            transition: all 0.3s ease;
+        }
+        .finding-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div x-data="codesentinel()" x-cloak>
+        <!-- Header -->
+        <header class="gradient-bg text-white shadow-lg">
+            <div class="container mx-auto px-6 py-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <i class="fas fa-shield-alt text-4xl"></i>
+                        <div>
+                            <h1 class="text-3xl font-bold">CodeSentinel</h1>
+                            <p class="text-purple-200 text-sm">智能代码审查与 Bug 修复 Agent</p>
+                        </div>
+                    </div>
+                    <button @click="showConfig = !showConfig" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-cog mr-2"></i>配置
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Config Panel -->
+        <div x-show="showConfig" class="bg-blue-50 border-b border-blue-200">
+            <div class="container mx-auto px-6 py-4">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                    <div>
+                        <span class="font-semibold">LLM Provider:</span>
+                        <span class="ml-2" x-text="config.llm_provider"></span>
+                    </div>
+                    <div>
+                        <span class="font-semibold">配置状态:</span>
+                        <span class="ml-2" x-text="config.is_configured ? '✓ 已配置' : '✗ 未配置'"></span>
+                    </div>
+                    <div>
+                        <span class="font-semibold">最大轮次:</span>
+                        <span class="ml-2" x-text="config.max_review_rounds"></span>
+                    </div>
+                    <div>
+                        <span class="font-semibold">自动修复:</span>
+                        <span class="ml-2" x-text="config.enable_auto_fix ? '✓' : '✗'"></span>
+                    </div>
+                    <div>
+                        <span class="font-semibold">严重度阈值:</span>
+                        <span class="ml-2" x-text="config.severity_threshold"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container mx-auto px-6 py-8">
+            <!-- Review Form -->
+            <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                    <i class="fas fa-search text-purple-600 mr-2"></i>开始代码审查
+                </h2>
+
+                <form @submit.prevent="startReview" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-folder-open mr-2 text-gray-500"></i>代码路径
+                        </label>
+                        <input
+                            type="text"
+                            x-model="reviewPath"
+                            placeholder="例如: ./examples/sample_buggy.py 或 ./your_project"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            required
+                        >
+                        <p class="text-xs text-gray-500 mt-2">支持单文件或目录路径</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-sync mr-2 text-gray-500"></i>最大审查轮次
+                            </label>
+                            <input
+                                type="number"
+                                x-model.number="maxRounds"
+                                min="0"
+                                max="5"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                            >
+                            <p class="text-xs text-gray-500 mt-1">0 表示使用默认配置</p>
+                        </div>
+
+                        <div class="flex items-center">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    x-model="enableFix"
+                                    class="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                                >
+                                <span class="text-sm font-semibold text-gray-700">
+                                    <i class="fas fa-wrench mr-2 text-gray-500"></i>启用自动修复
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        :disabled="reviewing"
+                        class="w-full gradient-bg text-white font-bold py-4 px-6 rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <i class="fas fa-play mr-2"></i>
+                        <span x-text="reviewing ? '审查进行中...' : '开始审查'"></span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Progress Section -->
+            <div x-show="reviewing || sessionId" class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-chart-line text-blue-600 mr-2"></i>审查进度
+                </h3>
+
+                <!-- Error Message -->
+                <div x-show="errorMessage" class="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-4">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-circle text-red-500 text-xl mr-3 mt-1"></i>
+                        <div class="flex-1">
+                            <p class="font-semibold text-red-800 mb-2">审查过程中发生错误</p>
+                            <p class="text-sm text-red-700 mb-2" x-text="errorMessage"></p>
+                            <details x-show="errorDetail" class="mt-2">
+                                <summary class="text-sm text-red-600 cursor-pointer hover:text-red-800">
+                                    查看详细错误信息
+                                </summary>
+                                <pre class="mt-2 text-xs bg-red-100 p-3 rounded overflow-x-auto" x-text="errorDetail"></pre>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600 mb-2">
+                            <span x-text="progressStatus"></span>
+                            <span x-text="progress + '%'"></span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div
+                                class="gradient-bg h-full rounded-full transition-all duration-500"
+                                :style="`width: ${progress}%`"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <div class="text-3xl font-bold text-blue-600" x-text="findingsCount"></div>
+                            <div class="text-sm text-gray-600">发现问题总数</div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <div class="text-3xl font-bold text-green-600" x-text="confirmedCount"></div>
+                            <div class="text-sm text-gray-600">确认问题数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div x-show="results.findings.length > 0" class="space-y-6">
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <template x-for="cat in categories" :key="cat.key">
+                        <div class="bg-white rounded-lg shadow-md p-4 text-center">
+                            <i :class="cat.icon + ' text-3xl mb-2'"></i>
+                            <div class="text-2xl font-bold" x-text="getCategoryCount(cat.key)"></div>
+                            <div class="text-sm text-gray-600" x-text="cat.label"></div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Filters -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex flex-wrap gap-4 items-center">
+                        <span class="font-semibold text-gray-700">筛选:</span>
+                        <select x-model="filterCategory" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="all">全部类别</option>
+                            <option value="security">安全</option>
+                            <option value="bug">Bug</option>
+                            <option value="performance">性能</option>
+                            <option value="style">代码风格</option>
+                        </select>
+                        <select x-model="filterSeverity" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="all">全部严重度</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" x-model="showOnlyConfirmed" class="w-4 h-4 text-purple-600 rounded">
+                            <span class="text-sm">仅显示已确认</span>
+                        </label>
+                        <button @click="downloadReport" class="ml-auto bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                            <i class="fas fa-download mr-2"></i>下载报告
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Findings List -->
+                <div class="space-y-4">
+                    <template x-for="finding in filteredFindings" :key="finding.file + finding.line">
+                        <div class="finding-card bg-white rounded-lg shadow-md overflow-hidden">
+                            <div class="p-6">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex items-start space-x-3">
+                                        <i :class="getCategoryIcon(finding.category) + ' text-2xl mt-1'"></i>
+                                        <div>
+                                            <h4 class="text-lg font-bold text-gray-800" x-text="finding.title"></h4>
+                                            <div class="flex items-center space-x-4 mt-1 text-sm text-gray-600">
+                                                <span>
+                                                    <i class="fas fa-file-code mr-1"></i>
+                                                    <span x-text="finding.file + ':' + finding.line"></span>
+                                                </span>
+                                                <span
+                                                    class="px-2 py-1 rounded text-xs font-semibold"
+                                                    :class="getSeverityClass(finding.severity)"
+                                                    x-text="finding.severity"
+                                                ></span>
+                                                <span
+                                                    class="px-2 py-1 rounded text-xs font-semibold"
+                                                    :class="finding.confirmed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                                                >
+                                                    <span x-text="finding.confirmed ? '✓ 已确认' : '待验证'"></span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-gray-700 mb-3" x-text="finding.description"></p>
+                                <div x-show="finding.suggestion" class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                                    <p class="text-sm font-semibold text-blue-800 mb-1">
+                                        <i class="fas fa-lightbulb mr-1"></i>修复建议
+                                    </p>
+                                    <p class="text-sm text-blue-700" x-text="finding.suggestion"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div x-show="!reviewing && !sessionId" class="text-center py-16">
+                <i class="fas fa-code text-6xl text-gray-300 mb-4"></i>
+                <p class="text-xl text-gray-500">输入代码路径开始智能审查</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function codesentinel() {
+            return {
+                // State
+                showConfig: false,
+                config: {},
+                reviewPath: './examples/sample_buggy.py',
+                maxRounds: 0,
+                enableFix: true,
+                reviewing: false,
+                sessionId: null,
+                progress: 0,
+                progressStatus: '准备中...',
+                findingsCount: 0,
+                confirmedCount: 0,
+                results: { findings: [], report: '' },
+                filterCategory: 'all',
+                filterSeverity: 'all',
+                showOnlyConfirmed: false,
+                errorMessage: '',
+                errorDetail: '',
+                categories: [
+                    { key: 'security', label: '安全', icon: 'fas fa-shield-alt text-red-500' },
+                    { key: 'bug', label: 'Bug', icon: 'fas fa-bug text-orange-500' },
+                    { key: 'performance', label: '性能', icon: 'fas fa-tachometer-alt text-yellow-500' },
+                    { key: 'style', label: '代码风格', icon: 'fas fa-palette text-blue-500' },
+                ],
+
+                // Initialize
+                async init() {
+                    await this.loadConfig();
+                },
+
+                // Load config
+                async loadConfig() {
+                    try {
+                        const response = await fetch('/api/config');
+                        this.config = await response.json();
+                    } catch (error) {
+                        console.error('加载配置失败:', error);
+                    }
+                },
+
+                // Start review
+                async startReview() {
+                    this.reviewing = true;
+                    this.progress = 0;
+                    this.progressStatus = '启动审查...';
+                    this.results = { findings: [], report: '' };
+
+                    try {
+                        const response = await fetch('/api/review', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                path: this.reviewPath,
+                                max_rounds: this.maxRounds,
+                                enable_fix: this.enableFix,
+                            }),
+                        });
+
+                        const data = await response.json();
+                        if (data.session_id) {
+                            this.sessionId = data.session_id;
+                            this.pollStatus();
+                        } else {
+                            alert('启动审查失败: ' + (data.error || '未知错误'));
+                            this.reviewing = false;
+                        }
+                    } catch (error) {
+                        console.error('启动审查失败:', error);
+                        alert('启动审查失败: ' + error.message);
+                        this.reviewing = false;
+                    }
+                },
+
+                // Poll status
+                async pollStatus() {
+                    const interval = setInterval(async () => {
+                        try {
+                            const response = await fetch(`/api/review/${this.sessionId}/status`);
+                            const data = await response.json();
+
+                            this.progress = data.progress;
+                            this.findingsCount = data.findings_count;
+                            this.confirmedCount = data.confirmed_count;
+
+                            if (data.status === 'completed') {
+                                clearInterval(interval);
+                                this.progressStatus = '审查完成!';
+                                this.reviewing = false;
+                                this.errorMessage = '';
+                                this.errorDetail = '';
+                                await this.loadResults();
+                            } else if (data.status === 'error') {
+                                clearInterval(interval);
+                                this.progressStatus = '审查失败';
+                                this.reviewing = false;
+                                this.errorMessage = data.error || '未知错误';
+                                this.errorDetail = data.error_detail || '';
+                                console.error('审查错误:', data.error);
+                                console.error('错误详情:', data.error_detail);
+                            } else {
+                                this.progressStatus = '正在审查代码...';
+                            }
+                        } catch (error) {
+                            console.error('轮询状态失败:', error);
+                        }
+                    }, 1000);
+                },
+
+                // Load results
+                async loadResults() {
+                    try {
+                        const response = await fetch(`/api/review/${this.sessionId}/results`);
+                        this.results = await response.json();
+                    } catch (error) {
+                        console.error('加载结果失败:', error);
+                    }
+                },
+
+                // Download report
+                async downloadReport() {
+                    window.open(`/api/review/${this.sessionId}/report`, '_blank');
+                },
+
+                // Computed
+                get filteredFindings() {
+                    return this.results.findings.filter(f => {
+                        if (this.filterCategory !== 'all' && f.category !== this.filterCategory) return false;
+                        if (this.filterSeverity !== 'all' && f.severity !== this.filterSeverity) return false;
+                        if (this.showOnlyConfirmed && !f.confirmed) return false;
+                        return true;
+                    });
+                },
+
+                // Helpers
+                getCategoryCount(category) {
+                    return this.results.findings.filter(f => f.category === category).length;
+                },
+
+                getCategoryIcon(category) {
+                    const cat = this.categories.find(c => c.key === category);
+                    return cat ? cat.icon : 'fas fa-question-circle text-gray-500';
+                },
+
+                getSeverityClass(severity) {
+                    const classes = {
+                        critical: 'bg-red-100 text-red-800',
+                        high: 'bg-orange-100 text-orange-800',
+                        medium: 'bg-yellow-100 text-yellow-800',
+                        low: 'bg-blue-100 text-blue-800',
+                    };
+                    return classes[severity] || 'bg-gray-100 text-gray-800';
+                },
+            };
+        }
+    </script>
+</body>
+</html>

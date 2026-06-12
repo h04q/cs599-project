@@ -29,6 +29,11 @@ sqlalchemy>=2.0.30
 structlog>=24.4.0
 langsmith>=0.1.100
 
+# ---- Web 服务器 ----
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+websockets>=13.0
+
 # ---- 测试 ----
 pytest>=8.3.0
 pytest-mock>=3.14.0

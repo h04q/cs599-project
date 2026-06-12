@@ -35,13 +35,18 @@ cs599-project/
 │   ├── architecture.md            # 架构详细说明
 │   ├── spec_product.md            # 产品规格（SDD 核心）
 │   ├── spec_architecture.md       # 架构规格
-│   └── spec_api.md                # API/工具规格
+│   ├── spec_api.md                # API/工具规格
+│   └── WEB_GUIDE.md               # Web 界面使用指南
 ├── src/
-│   ├── main.py                    # CLI 入口
+│   ├── main.py                    # CLI 入口（包含 Web 命令）
 │   ├── config/                    # 配置加载（环境变量、模型路由）
 │   ├── agent/                     # 各 Agent 节点：scanner/reviewer/verifier/fixer/reporter
 │   ├── tools/                     # 工具集：文件/代码静态分析/Git 操作
 │   ├── graph/                     # LangGraph 状态机定义与编排
+│   ├── web/                       # Web 服务器与前端界面
+│   │   ├── app.py                 # FastAPI 应用
+│   │   └── static/                # 静态资源
+│   │       └── index.html         # Web 主界面
 │   └── observability/             # 日志、Tracing、记忆机制
 ├── tests/                         # 单元/集成测试
 ├── examples/                      # 示例：故意写错的代码片段
@@ -76,6 +81,7 @@ cp .env.example .env
 
 ### 3. 启动步骤
 
+#### CLI 模式
 ```bash
 # 审查单文件
 python -m src.main review --path examples/sample_buggy.py
@@ -83,7 +89,23 @@ python -m src.main review --path examples/sample_buggy.py
 # 审查整个目录
 python -m src.main review --path ./your_repo --output report.md
 
-# Docker 方式
+# 查看配置
+python -m src.main info
+```
+
+#### Web 界面模式（新增）
+```bash
+# 启动 Web 服务器
+python -m src.main web
+
+# 指定端口和开发模式
+python -m src.main web --port 8080 --reload
+
+# 访问界面: http://localhost:8000
+```
+
+#### Docker 方式
+```bash
 docker compose up --build
 ```
 
@@ -91,7 +113,7 @@ docker compose up --build
 
 - [x] Proposal（设计文档、架构图、Spec 初稿）
 - [x] MVP（核心闭环 Demo，tag: v0.1）
-- [ ] Final（完整文档 + 评估 + 演示视频）
+- [x] Final（完整文档 + 评估 + 演示视频）
 
 ## 引用与致谢
 

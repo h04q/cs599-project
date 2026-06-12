@@ -50,9 +50,25 @@ def build_llm(settings: Settings | None = None, **overrides: Any) -> BaseChatMod
     if s.llm_provider == "openai":
         from langchain_openai import ChatOpenAI
 
+        kwargs = {}
+        if s.openai_base_url:
+            kwargs["base_url"] = s.openai_base_url
+
         return ChatOpenAI(
             model=s.openai_model,
             api_key=s.openai_api_key,
+            temperature=temperature,
+            **kwargs,
+            **overrides,
+        )
+
+    if s.llm_provider == "qwen":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(
+            model=s.qwen_model,
+            api_key=s.qwen_api_key,
+            base_url=s.qwen_base_url,
             temperature=temperature,
             **overrides,
         )
